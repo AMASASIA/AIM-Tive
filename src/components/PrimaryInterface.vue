@@ -214,12 +214,13 @@ watch(() => props.isListening, (newVal) => {
 .ambient-glow { position: fixed; inset: 0; background: radial-gradient(circle at center, rgba(128,128,128,0.02) 0%, transparent 80%); pointer-events: none; }
 
 @keyframes tive-pulse { 
-    0%, 100% { transform: scale(1); opacity: 0.8; } 
-    50% { transform: scale(1.5); opacity: 1; } 
+    0%, 100% { transform: scale(1); opacity: 0.6; filter: blur(1px); } 
+    50% { transform: scale(1.4); opacity: 0.9; filter: blur(0px); } 
 }
 @keyframes tive-pulse-active {
-    0%, 100% { transform: scale(1.2); opacity: 1; filter: brightness(1.2); }
-    50% { transform: scale(2.2); opacity: 0.8; filter: brightness(1.5); }
+    0%, 100% { transform: scale(1.2); opacity: 1; filter: brightness(1.2) blur(0px); box-shadow: 0 0 15px #6366f1; }
+    33% { transform: scale(2.5); opacity: 0.8; filter: brightness(1.8) blur(1px); box-shadow: 0 0 35px #6366f1; }
+    66% { transform: scale(1.8); opacity: 0.9; filter: brightness(1.5) blur(0px); box-shadow: 0 0 25px #818cf8; }
 }
 
 .pop-enter-active { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }

@@ -98,7 +98,7 @@ const handlePromptSubmit = () => {
     <header class="absolute top-0 w-full p-10 flex justify-between items-center z-[110]">
         <div class="flex items-center gap-4 opacity-30 text-white" :class="{ 'text-black': theme === 'light' }">
             <Menu :size="20" />
-            <span class="text-[10px] font-black uppercase tracking-[0.3em] font-sans">Tive◎AI</span>
+            <span class="text-[10px] font-black uppercase tracking-[0.3em] font-sans">Tive AI</span>
         </div>
         <div class="flex items-center gap-4 text-white">
             <div class="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full scale-90" :class="{ 'bg-black/5 border-black/10': theme === 'light' }">
@@ -142,19 +142,32 @@ const handlePromptSubmit = () => {
 
         <div class="main-card w-full h-full bg-white rounded-[4rem] shadow-[0_0_100px_rgba(255,255,255,0.05)] flex flex-col items-center justify-center text-center p-12 overflow-hidden relative" :class="{ 'shadow-[0_0_60px_rgba(0,0,0,0.1)]': theme === 'light' }">
             
-            <div v-if="isThinking" class="mb-8 relative">
-                <div class="absolute inset-0 bg-[#FF007F] blur-2xl opacity-40 animate-pulse scale-150"></div>
-                <div class="relative w-4 h-4 bg-[#FF007F] rounded-full shadow-[0_0_40px_#FF007F]">
-                    <div class="absolute inset-[4px] bg-white rounded-full opacity-80"></div>
+            <!-- Multi-layered Resonance (Thinking State) -->
+            <template v-if="isThinking">
+                <div class="absolute inset-0 z-0 overflow-hidden pointer-events-none opacity-40">
+                    <div class="absolute top-[-20%] left-[-20%] w-[140%] h-[140%] bg-[#FF007F] blur-[120px] animate-resonance-1 mix-blend-multiply opacity-50"></div>
+                    <div class="absolute top-[-10%] right-[-10%] w-[120%] h-[120%] bg-[#7F00FF] blur-[100px] animate-resonance-2 mix-blend-screen opacity-40"></div>
+                    <div class="absolute bottom-[-20%] left-[10%] w-[130%] h-[130%] bg-[#00F0FF] blur-[110px] animate-resonance-3 mix-blend-overlay opacity-30"></div>
                 </div>
-            </div>
+                
+                <div class="mb-10 relative z-10">
+                    <div class="absolute inset-0 bg-[#FF007F] blur-3xl opacity-60 animate-pulse scale-150"></div>
+                    <div class="relative w-6 h-6 bg-[#FF007F] rounded-full shadow-[0_0_50px_#FF007F] flex items-center justify-center">
+                        <div class="w-2.5 h-2.5 bg-white rounded-full opacity-90 animate-ping"></div>
+                        <div class="absolute inset-[4px] bg-white rounded-full opacity-100"></div>
+                    </div>
+                </div>
 
-            <div class="space-y-6 z-10">
-                <h2 v-if="isThinking" class="text-4xl sm:text-5xl font-light tracking-[0.05em] text-black opacity-100 drop-shadow-md animate-pulse">
-                    Thinking..
-                </h2>
-                <div v-else class="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-                    <div class="text-2xl sm:text-3xl font-light tracking-tight leading-relaxed text-black/90 max-h-[250px] overflow-y-auto px-4 custom-scrollbar">
+                <div class="space-y-6 z-10">
+                    <h2 class="text-5xl sm:text-6xl font-light tracking-[0.15em] text-black opacity-100 drop-shadow-xl animate-pulse">
+                        Thinking..
+                    </h2>
+                </div>
+            </template>
+
+            <div v-else class="space-y-6 z-10 w-full h-full flex flex-col justify-center">
+                <div class="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+                    <div class="text-2xl sm:text-3xl font-light tracking-tight leading-relaxed text-black/90 max-h-[300px] overflow-y-auto px-6 custom-scrollbar">
                         {{ content }}
                     </div>
                 </div>
@@ -174,6 +187,9 @@ const handlePromptSubmit = () => {
                 @touchend.prevent="stopDrawing"
             ></canvas>
 
+            <!-- Grain/Texture Overlay -->
+            <div class="absolute inset-0 opacity-[0.03] pointer-events-none z-30" style="background-image: url('https://grainy-gradients.vercel.app/noise.svg');"></div>
+            
             <!-- Decorative Ambient Base -->
             <div class="absolute bottom-0 inset-x-0 h-32 bg-gradient-to-t from-black/5 to-transparent pointer-events-none"></div>
         </div>
@@ -226,6 +242,22 @@ const handlePromptSubmit = () => {
 .light-mode header { color: black; }
 .light-mode input { color: black; }
 .light-mode .placeholder\:opacity-20::placeholder { color: black; opacity: 0.3; }
+
+@keyframes resonance-1 {
+    0%, 100% { transform: scale(1) translate(0, 0) rotate(0deg); }
+    33% { transform: scale(1.2) translate(5%, 10%) rotate(5deg); }
+    66% { transform: scale(0.9) translate(-5%, -5%) rotate(-5deg); }
+}
+@keyframes resonance-2 {
+    0%, 100% { transform: scale(1) translate(0, 0) rotate(0deg); }
+    33% { transform: scale(1.1) translate(-10%, 5%) rotate(-10deg); }
+    66% { transform: scale(1.3) translate(10%, -10%) rotate(10deg); }
+}
+@keyframes resonance-3 {
+    0%, 100% { transform: scale(1) translate(0, 0) rotate(0deg); }
+    33% { transform: scale(0.8) translate(10%, -10%) rotate(15deg); }
+    66% { transform: scale(1.2) translate(-10%, 10%) rotate(-15deg); }
+}
 
 select option {
     background: #111;

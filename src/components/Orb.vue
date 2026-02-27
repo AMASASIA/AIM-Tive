@@ -31,7 +31,7 @@ onUnmounted(() => cancelAnimationFrame(animationFrame));
 
 <template>
   <div class="orb-container" :class="{ 'is-listening': isListening, 'is-processing': isProcessing }">
-    <div class="outer-ring"></div>
+    <div class="outer-ring" :class="{ 'is-speaking': isProcessing }"></div>
     
     <div class="orb-core">
       <!-- Mist Layers -->
@@ -44,12 +44,16 @@ onUnmounted(() => cancelAnimationFrame(animationFrame));
             v-for="(bar, i) in bars" 
             :key="i" 
             class="v-bar" 
-            :style="{ height: bar.h + 'px' }"
+            :style="{ 
+                height: bar.h + 'px',
+                width: '8px',
+                opacity: 0.6 + (bar.h / 100)
+            }"
           ></div>
           <!-- Stop Indicator (Square) -->
           <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div class="stop-indicator w-6 h-6 backdrop-blur-md rounded-lg flex items-center justify-center">
-                  <div class="stop-square w-2 h-2 rounded-sm"></div>
+              <div class="stop-indicator w-10 h-10 backdrop-blur-xl rounded-2xl flex items-center justify-center">
+                  <div class="stop-square w-3 h-3 rounded-sm opacity-80"></div>
               </div>
           </div>
       </div>
@@ -89,10 +93,21 @@ onUnmounted(() => cancelAnimationFrame(animationFrame));
   animation: ring-pulse 6s infinite ease-in-out;
 }
 
+.outer-ring.is-speaking {
+    animation: ring-pulse-fast 1s infinite ease-in-out;
+    border-width: 8px;
+    opacity: 1;
+}
+
+@keyframes ring-pulse-fast {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.1); opacity: 1; filter: brightness(1.5); }
+}
+
 .light-mode .outer-ring {
-    border-color: rgba(0, 0, 0, 0.8);
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.2);
-    opacity: 0.9;
+    border-color: rgba(0, 0, 0, 0.9);
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.15);
+    opacity: 1;
 }
 
 .orb-core {
@@ -112,7 +127,8 @@ onUnmounted(() => cancelAnimationFrame(animationFrame));
 .light-mode .orb-core {
     background: #ffffff;
     border-color: rgba(0, 0, 0, 0.1);
-    box-shadow: 0 0 30px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.1);
+    opacity: 1;
 }
 
 .visualizer-bars {
@@ -123,24 +139,24 @@ onUnmounted(() => cancelAnimationFrame(animationFrame));
 }
 
 .v-bar {
-    width: 6px;
     background: white;
-    border-radius: 3px;
+    border-radius: 4px;
     box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
-    transition: height 0.1s ease;
+    transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .light-mode .v-bar {
-    background: #111;
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+    background: #000;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
 }
 
 .stop-indicator {
-    background: rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.15);
     border: 1px solid rgba(255,255,255,0.2);
+    backdrop-filter: blur(10px);
 }
 .light-mode .stop-indicator {
-    background: rgba(0,0,0,0.1);
+    background: rgba(0,0,0,0.05);
     border-color: rgba(0,0,0,0.1);
 }
 .stop-square { background: white; }
@@ -158,20 +174,20 @@ onUnmounted(() => cancelAnimationFrame(animationFrame));
 
 .light-mode .tive-dot {
     background: black;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
 }
 
 .mist {
   position: absolute;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
   filter: blur(40px);
 }
 
 .light-mode .mist {
-    background: radial-gradient(circle at center, rgba(0, 0, 0, 0.1) 0%, transparent 70%);
-    opacity: 0.4;
+    background: radial-gradient(circle at center, rgba(0, 0, 0, 0.08) 0%, transparent 70%);
+    opacity: 0.6;
 }
 
 .layer-1 { animation: mist-float 15s infinite linear; }
@@ -189,7 +205,7 @@ onUnmounted(() => cancelAnimationFrame(animationFrame));
 
 @keyframes ring-pulse {
   0%, 100% { transform: scale(1); opacity: 0.6; }
-  50% { transform: scale(1.03); opacity: 0.8; }
+  50% { transform: scale(1.05); opacity: 0.8; }
 }
 
 .listening-wave {
@@ -201,12 +217,12 @@ onUnmounted(() => cancelAnimationFrame(animationFrame));
 .wave {
   position: absolute;
   inset: 0;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 4px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
   animation: wave-spread 3s infinite linear;
 }
 
-.light-mode .wave { border-color: rgba(0, 0, 0, 0.4); border-width: 2px; }
+.light-mode .wave { border-color: rgba(0, 0, 0, 0.5); border-width: 6px; }
 
 @keyframes wave-spread {
   0% { transform: scale(0.8); opacity: 0.8; }

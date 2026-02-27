@@ -2,6 +2,7 @@ import { ref } from 'vue';
 
 let audioCtx: AudioContext | null = null;
 const activeSources = new Set<AudioBufferSourceNode | OscillatorNode>();
+let nextStartTime = 0;
 
 const getAudioCtx = () => {
     if (!audioCtx) {
@@ -13,17 +14,42 @@ const getAudioCtx = () => {
 export const useAmasAudio = () => {
     const stopAll = () => {
         activeSources.forEach(source => {
-            try { source.stop(); } catch (e) {}
+            try { source.stop(); } catch (e) { }
         });
         activeSources.clear();
-        if (audioCtx && audioCtx.state !== 'closed') {
-            // We don't close the context, just suspend if needed, but usually we just stop sources
-        }
+        nextStartTime = 0;
     };
 
     const registerSource = (source: AudioBufferSourceNode | OscillatorNode) => {
         activeSources.add(source);
-        source.onended = () => activeSources.delete(source);
+        source.onended = () => {
+            activeSources.delete(source);
+        };
+    };
+
+    const playChunk = async (audioData: ArrayBuffer) => {
+        const ctx = getAudioCtx();
+        if (ctx.state === 'suspended') await ctx.resume();
+
+        try {
+            const buffer = await ctx.decodeAudioData(audioData);
+            const source = ctx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(ctx.destination);
+
+            // Scheduling logic
+            const now = ctx.currentTime;
+            if (nextStartTime < now) {
+                nextStartTime = now + 0.05; // Small buffer for first chunk
+            }
+
+            source.start(nextStartTime);
+            registerSource(source);
+
+            nextStartTime += buffer.duration;
+        } catch (e) {
+            console.error("Audio chunk decode error:", e);
+        }
     };
 
     const playSanctuaryBell = () => {
@@ -40,7 +66,7 @@ export const useAmasAudio = () => {
 
         oscillator.connect(gainNode).connect(ctx.destination);
         if (ctx.state === 'suspended') ctx.resume();
-        
+
         registerSource(oscillator);
         oscillator.start();
         oscillator.stop(ctx.currentTime + 3.0);
@@ -85,11 +111,11 @@ export const useAmasAudio = () => {
 
         osc.connect(gain).connect(ctx.destination);
         if (ctx.state === 'suspended') ctx.resume();
-        
+
         registerSource(osc);
         osc.start();
         osc.stop(ctx.currentTime + 2.0);
     };
 
-    return { playSanctuaryBell, playSemanticTone, stopAll };
+    return { playSanctuaryBell, playSemanticTone, playChunk, stopAll };
 };
