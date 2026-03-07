@@ -39,9 +39,14 @@ export const useAmasAudio = () => {
             const buffer = await ctx.decodeAudioData(audioData);
             const source = ctx.createBufferSource();
             const gainNode = ctx.createGain();
+            const context = learningService.getEvolvedContext();
 
             source.buffer = buffer;
             gainNode.gain.setValueAtTime(getClampedVol(1.0), ctx.currentTime);
+
+            // Adapt playback rate to Tranquility (Higher = Slower/Lower Pitch)
+            const rate = 1.0 - (context.tranquility * 0.15);
+            source.playbackRate.setValueAtTime(rate, ctx.currentTime);
 
             source.connect(gainNode).connect(ctx.destination);
 
@@ -54,7 +59,8 @@ export const useAmasAudio = () => {
             source.start(nextStartTime);
             registerSource(source);
 
-            nextStartTime += buffer.duration;
+            // Important: Adjust nextStartTime by duration * rate
+            nextStartTime += buffer.duration / rate;
         } catch (e) {
             console.error("Audio chunk decode error:", e);
         }
@@ -65,8 +71,12 @@ export const useAmasAudio = () => {
         const oscillator = ctx.createOscillator();
         const gainNode = ctx.createGain();
         const vol = getClampedVol(0.12);
+        const context = learningService.getEvolvedContext();
 
-        oscillator.frequency.setValueAtTime(2637.02, ctx.currentTime);
+        // Tranquility shift: Lower frequency for higher tranquility
+        const baseFreq = 2637.02;
+        const freqShift = baseFreq * (1.0 - (context.tranquility * 0.1));
+        oscillator.frequency.setValueAtTime(freqShift, ctx.currentTime);
         oscillator.type = 'sine';
 
         gainNode.gain.setValueAtTime(0, ctx.currentTime);
@@ -86,32 +96,34 @@ export const useAmasAudio = () => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         const vol = getClampedVol(0.1);
+        const context = learningService.getEvolvedContext();
+        const freqMod = 1.0 - (context.tranquility * 0.2); // Up to 20% lower
 
         switch (type) {
             case 'task':
-                osc.frequency.setValueAtTime(1760, ctx.currentTime);
+                osc.frequency.setValueAtTime(1760 * freqMod, ctx.currentTime);
                 osc.type = 'sine';
                 gain.gain.setValueAtTime(0, ctx.currentTime);
                 gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + 0.05);
                 gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
                 break;
             case 'reflection':
-                osc.frequency.setValueAtTime(329.63, ctx.currentTime);
+                osc.frequency.setValueAtTime(329.63 * freqMod, ctx.currentTime);
                 osc.type = 'sine';
                 gain.gain.setValueAtTime(0, ctx.currentTime);
                 gain.gain.linearRampToValueAtTime(vol * 1.5, ctx.currentTime + 0.1);
                 gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.0);
                 break;
             case 'success':
-                osc.frequency.setValueAtTime(440, ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.5);
+                osc.frequency.setValueAtTime(440 * freqMod, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880 * freqMod, ctx.currentTime + 0.5);
                 osc.type = 'sine';
                 gain.gain.setValueAtTime(0, ctx.currentTime);
                 gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + 0.1);
                 gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
                 break;
             case 'error':
-                osc.frequency.setValueAtTime(150, ctx.currentTime);
+                osc.frequency.setValueAtTime(150 * freqMod, ctx.currentTime);
                 osc.type = 'triangle';
                 gain.gain.setValueAtTime(0, ctx.currentTime);
                 gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + 0.05);

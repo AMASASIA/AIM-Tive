@@ -10,7 +10,7 @@
 
     <main class="flex-1 relative overflow-hidden flex flex-col min-h-0">
       <Transition name="view-fade" mode="out-in">
-        <!-- Unified Interface (Page 1) -->
+        <!-- Deploy Dash Integration -->
         <PrimaryInterface 
           v-if="activeView === 'dashboard'" 
           :isListening="isListening" 
@@ -20,6 +20,8 @@
           @viewMemos="activeView = 'notebook'"
           @viewDiscovery="notify('Discovery', 'Searching the neural web...', 'success')"
           @viewAiMap="notify('AI Map', 'Initializing semantic visualization...', 'success')"
+          @viewDeployment="activeView = 'deployment'"
+          @viewCards="activeView = 'cards'"
           @notify="(n) => notify(n.title, n.message, n.type)"
           @textInput="handleSendMessage"
         />
@@ -56,6 +58,21 @@
           }"
           @toggle-voice="handleToggleVoice"
         />
+
+        <!-- Deployment Dashboard (New) -->
+        <DeploymentDashboard 
+          v-else-if="activeView === 'deployment'"
+          @nav="(view) => { if (view === 'dashboard') activeView = 'dashboard'; }"
+        />
+
+        <!-- Cards View (New) -->
+        <div v-else-if="activeView === 'cards'" class="flex-1 flex flex-col items-center justify-center relative p-6">
+          <button @click="activeView = 'dashboard'" class="absolute top-6 left-6 text-white/50 hover:text-white transition-colors flex items-center gap-2">
+            <X :size="20" /> 
+            <span class="text-xs font-bold tracking-widest uppercase">BACK</span>
+          </button>
+          <TiveFlashcardSwiper />
+        </div>
       </Transition>
     </main>
 
@@ -73,12 +90,15 @@ import PrimaryInterface from '../components/PrimaryInterface.vue';
 import NotificationToast from '../components/NotificationToast.vue';
 import { useNotifications } from '../composables/useNotifications';
 import ResultScreen from '../components/ResultScreen.vue';
-import { createKernelSession, sendMessage, analyzeIntent } from '../services/intentService.js';
-import { useAmasSecretary } from '../composables/useAmasSecretary'; 
+import DeploymentDashboard from '../components/DeploymentDashboard.vue';
+import TiveFlashcardSwiper from '../components/TiveFlashcardSwiper.vue';
+import { createKernelSession, sendMessage, analyzeIntent, streamTiveCore } from '../services/intentService.js';
+import { useAmasSecretary } from '../composables/useAmasSecretary';
 import { useAmasAudio } from '../composables/useAmasAudio';
 import { useAmasAudioRecorder } from '../composables/useAmasAudioRecorder';
 import { AntigravityEngine } from '../engine/antigravity-engine.js';
 import { i18n, theme } from '../services/i18n';
+import { learningService } from '../services/learningService.js';
 
 // Helpers for detection
 const detectLanguage = (text) => {
@@ -248,27 +268,43 @@ const handleSendMessage = async (text) => {
   isLoading.value = true;
 
   try {
-    const aiResponse = await sendMessage(kernelSession.value, text);
-    messages.value.push({
-      id: (Date.now() + 1).toString(),
-      role: 'model',
-      content: aiResponse,
-      timestamp: new Date()
-    });
+    const payload = { 
+        text: text,
+        user_id: user.value?.id || 'anonymous',
+        learningState: learningService.getEvolvedContext(),
+        locale: i18n.locale
+    };
     
-    if (activeView.value === 'result') {
-      resultContent.value = aiResponse;
-      isResultThinking.value = false;
-      if (isOmotenashi) {
-          AntigravityEngine.loadAIState({ energyScore: 0.6, color: '#FF8B8B', reactivity: 0.5 });
-      } else {
+    streamTiveCore(
+      payload,
+      (msg) => { 
+        // Update thinking status or intermediate thought
+        console.log("[Tive◎AI] Streaming:", msg);
+      },
+      (data) => {
+        // Handle completion
+        const aiResponse = data; // This will be the OKE JSON
+        messages.value.push({
+          id: (Date.now() + 1).toString(),
+          role: 'model',
+          content: aiResponse,
+          timestamp: new Date()
+        });
+        
+        if (activeView.value === 'result') {
+          resultContent.value = aiResponse;
+          isResultThinking.value = false;
           AntigravityEngine.loadAIState({ energyScore: 0.8, color: '#FFD700', reactivity: 1.2 });
+        }
+      },
+      (err) => {
+        throw new Error(err);
       }
-    }
+    );
   } catch (error) {
     console.error('[Tive◎AI] AI Error:', error);
     if (activeView.value === 'result') {
-      resultContent.value = `[Neural Fragility]: Connection was interrupted. I have your thought: "${text}", but I'm having trouble synthesizing right now.`;
+      resultContent.value = `[Neural Fragility]: Connection was interrupted.`;
       isResultThinking.value = false;
     }
   } finally {
@@ -292,12 +328,12 @@ const handleToggleVoice = async () => {
         
         try {
             stopAll();
-            const transcript = await stopRecording();
+            const audioData = await stopRecording();
             isProcessingVoice.value = false;
             
-            if (transcript) {
+            if (audioData) {
                 // handleVoiceTranscription will update resultContent and set isResultThinking to false
-                await handleVoiceTranscription(transcript);
+                await handleVoiceTranscription(audioData);
             } else {
                 notify('Notice', 'No voice detected.', 'info');
                 activeView.value = 'dashboard';
@@ -321,44 +357,56 @@ const handleToggleVoice = async () => {
     }
 };
 
-const handleVoiceTranscription = async (transcript) => {
-    if (!transcript) return;
-    console.log(`[Tive◎AI] 🎤 Voice Capture: "${transcript}"`);
-
-    // 🌐 Language Sync (Same logic as text input)
-    const detectedLang = detectLanguage(transcript);
-    if (i18n.locale !== detectedLang) {
-        console.log(`[Tive◎AI] 🌐 Language Shift detected from Voice: ${detectedLang}`);
-        i18n.setLocale(detectedLang);
-    }
-
-    const amasKeywords = ["amas", "アマス", "あます", "アマスる"];
-    if (amasKeywords.some(kw => transcript.toLowerCase().includes(kw))) {
-        resultContent.value = "Amane Protocol Synchronized. I am here.";
-        isResultThinking.value = false;
-        return;
-    }
+const handleVoiceTranscription = async (audioData) => {
+    if (!audioData) return;
+    console.log(`[Tive◎AI] 🎤 Voice Streaming Capture...`);
 
     const processingId = 'proc-' + Date.now();
-    notebookEntries.value.unshift({ id: processingId, type: 'voice_memo', title: 'Thinking...', content: transcript, timestamp: new Date(), isProcessing: true });
+    notebookEntries.value.unshift({ id: processingId, type: 'voice_memo', title: 'Thinking...', content: 'Receiving neural audio...', timestamp: new Date(), isProcessing: true });
     
     try {
-        // We're already in 'result' view with 'isResultThinking' = true
-        const intent = await analyzeIntent(transcript);
-        const secretaryEntry = await processSecretaryNote(transcript);
-        
-        // Dynamic update of result
-        resultContent.value = secretaryEntry.content;
-        isResultThinking.value = false;
+        const payload = { 
+            audio: audioData.base64, 
+            mimeType: audioData.mimeType,
+            user_id: user.value?.id || 'anonymous',
+            learningState: learningService.getEvolvedContext(),
+            locale: i18n.locale
+        };
 
-        notebookEntries.value.unshift(secretaryEntry);
-        playSemanticTone('reflection');
-        notify('Notebook', 'Insight captured.', 'success');
-        AntigravityEngine.loadAIState({ energyScore: 0.5, color: '#FFD700', reactivity: 0.8 });
+        streamTiveCore(
+            payload,
+            (msg) => {
+                console.log("[Tive◎AI] Thought:", msg);
+            },
+            (data) => {
+                // data is the OKE JSON including transcription
+                const finalContent = data; 
+                resultContent.value = finalContent;
+                isResultThinking.value = false;
+
+                // Create notebook entry
+                const entry = {
+                    id: Date.now().toString(),
+                    type: 'standard',
+                    title: `Voice Crystal ${new Date().toLocaleTimeString()}`,
+                    content: finalContent,
+                    timestamp: new Date()
+                };
+                notebookEntries.value.unshift(entry);
+                
+                playSemanticTone('reflection');
+                notify('Notebook', 'Insight captured.', 'success');
+                AntigravityEngine.loadAIState({ energyScore: 0.5, color: '#FFD700', reactivity: 0.8 });
+            },
+            (err) => {
+                 resultContent.value = `[Error]: ${err}`;
+                 isResultThinking.value = false;
+            }
+        );
+
     } catch (e) {
         console.error('Transcription Error:', e);
-        // If it fails, we keep the transcript at least in result view but stop thinking
-        resultContent.value = `[Transcribed]: ${transcript}\n\n(Core communication fragile, but I captured your words.)`;
+        resultContent.value = `[Neural Fragility]: Failed to process voice.`;
         isResultThinking.value = false;
     } finally {
         notebookEntries.value = notebookEntries.value.filter(e => e.id !== processingId);

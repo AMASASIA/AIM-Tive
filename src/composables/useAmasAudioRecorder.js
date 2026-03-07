@@ -121,28 +121,22 @@ export function useAmasAudioRecorder() {
                     lastAudioId.value = id;
                 } catch (e) { console.warn("[Tive◎AI] Storage fail:", e); }
 
-                // Step 2: Background Batch Upload (Non-blocking)
+                // Step 2: Background Processing (Return data for Serverless)
                 isUploading.value = true;
                 try {
                     const reader = new FileReader();
-                    reader.onloadend = async () => {
-                        const base64data = reader.result;
-                        const response = await fetch(`${API_BASE_URL}/api/transcribe`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                audioBase64: base64data,
-                                mimeType: mediaRecorder.value.mimeType,
-                                metadata: { duration: (Date.now() - sessionStartTime.value) / 1000 }
-                            })
-                        });
-                        const data = await response.json();
+                    reader.onloadend = () => {
+                        const result = reader.result;
+                        const base64 = result.split(',')[1]; // Strip prefix
                         isUploading.value = false;
-                        resolve(data.transcript);
+                        resolve({
+                            base64: base64,
+                            mimeType: mediaRecorder.value.mimeType
+                        });
                     };
                     reader.readAsDataURL(audioBlob);
                 } catch (e) {
-                    console.error("[Tive◎AI] Batch dispatch failed:", e);
+                    console.error("[Tive◎AI] Audio conversion failed:", e);
                     isUploading.value = false;
                     resolve(null);
                 }

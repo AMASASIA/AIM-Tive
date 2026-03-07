@@ -149,6 +149,49 @@ export const AntigravityEngine = {
             this.energy = this.aiState.energyScore || 0.5;
             this.glowState = "stable";
         }, 2000);
+    },
+
+    triggerResonance() {
+        const roseGold = "#FF8B8B";
+        this.targetColor = roseGold;
+        this.energy = 0.9;
+        this.reactivity = 2.0;
+
+        // Speed up particles in a circular swirl
+        this.particles.forEach(p => {
+            const dx = p.x - this.canvas.width / 2;
+            const dy = p.y - this.canvas.height / 2;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            p.vx += -(dy / dist) * 2;
+            p.vy += (dx / dist) * 2;
+            p.alpha = 0.8;
+        });
+
+        setTimeout(() => {
+            this.targetColor = this.aiState.color || '#00ffcc';
+            this.energy = this.aiState.energyScore || 0.5;
+            this.reactivity = this.aiState.reactivity || 1.0;
+        }, 1500);
+    },
+
+    triggerTranquility() {
+        const tranquilBlue = "#A5F3FC"; // Cyan 200/300
+        this.targetColor = tranquilBlue;
+        this.energy = 0.2;
+        this.reactivity = 0.3;
+
+        // Decelerate everything
+        this.particles.forEach(p => {
+            p.vx *= 0.1;
+            p.vy *= 0.1;
+            p.alpha = 1.0;
+        });
+
+        setTimeout(() => {
+            this.targetColor = this.aiState.color || '#00ffcc';
+            this.energy = this.aiState.energyScore || 0.5;
+            this.reactivity = this.aiState.reactivity || 1.0;
+        }, 2500);
     }
 };
 

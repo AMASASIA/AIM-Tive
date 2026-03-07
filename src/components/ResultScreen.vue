@@ -1,8 +1,12 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { Share2, Book, Check, PenTool, X, Trash2, ArrowLeft, Plus, Mic, Square, Menu, LayoutDashboard, Copy, Zap } from 'lucide-vue-next';
+import { Share2, Book, Check, PenTool, X, Trash2, ArrowLeft, Plus, Mic, Square, Menu, LayoutDashboard, Copy, Zap, Heart, Wind, BrainCircuit, Sparkles } from 'lucide-vue-next';
 import { i18n, theme, activeModel } from '../services/i18n';
+import { learningService } from '../services/learningService.js';
+import { getGeminiModel } from '../lib/gemini';
+import { AntigravityEngine } from '../engine/antigravity-engine.js';
 import AmaneCertificationCard from './AmaneCertificationCard.vue';
+import TiveGemCard from './TiveGemCard.vue';
 
 const props = defineProps({
     content: { type: String, default: "" },
@@ -11,12 +15,35 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'save', 'oke', 'submit']);
 
+const selectedModel = activeModel; // Fix reference
 const isSigning = ref(false);
 const isOke = ref(false);
+const isProcessingHybrid = ref(false);
+const isTiveEnhanced = ref(false);
+const tiveAnalysis = ref({ status: "Connecting...", step: 0 });
+const gemCardData = ref(null);
 const promptInput = ref('');
 const processingState = ref('idle'); // idle, proofing, sending, completed
 const userWallet = ref(localStorage.getItem('tive_wallet_address') || '');
 const zkpProof = ref(null);
+
+// --- NEW SCHEMA DETECTION ---
+const gemData = computed(() => {
+    if (!props.content) return null;
+    try {
+        // Handle both raw strings and already parsed objects
+        const raw = typeof props.content === 'string' ? props.content.trim() : props.content;
+        // Basic check for the new schema structure
+        if (typeof raw === 'string' && (raw.startsWith('{') && raw.includes('study_guide'))) {
+            return JSON.parse(raw);
+        } else if (typeof raw === 'object' && raw.study_guide) {
+            return raw;
+        }
+    } catch (e) {
+        console.warn("Content looks like JSON but parsing failed for TiveGemCard", e);
+    }
+    return null;
+});
 
 // Canvas Logic
 const canvasRef = ref(null);
@@ -146,6 +173,51 @@ const handleAmaneMint = async (target) => {
         processingState.value = 'idle';
     }
 };
+
+// Learning Feedback
+const sendFeedback = (reward) => {
+    learningService.feedBack(reward);
+    playBell(); // Tactile feedback
+    if (reward > 0) AntigravityEngine.triggerResonance();
+    else AntigravityEngine.triggerTranquility();
+};
+
+const handleTiveEnhance = async () => {
+    if (isProcessingHybrid.value) return;
+    isProcessingHybrid.value = true;
+    isTiveEnhanced.value = true;
+    tiveAnalysis.value = { status: "Brain Scanning...", step: 1 };
+    
+    try {
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        if (!apiKey) throw new Error("Missing Gemini API Key");
+        
+        const model = getGeminiModel(apiKey);
+        
+        tiveAnalysis.value = { status: "Synthesizing Neurons...", step: 2 };
+        const prompt = `Thought Context: ${props.content}\n\nPerform a deep Tive Intelligence Analysis on this thought. Resolve it into structured artifacts.`;
+        
+        const result = await model.generateContent(prompt);
+        const responseText = result.response.text();
+        
+        tiveAnalysis.value = { status: "Crystallizing Artifacts...", step: 3 };
+        
+        // Clean JSON formatting
+        const cleaned = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const parsed = JSON.parse(cleaned);
+        
+        gemCardData.value = parsed;
+        isProcessingHybrid.value = false;
+        playBell();
+    } catch (e) {
+        console.error("Tive Enhancement failed", e);
+        tiveAnalysis.value = { status: "Neural Fragility: Synthesis Error", step: -1 };
+        setTimeout(() => {
+            isProcessingHybrid.value = false;
+            isTiveEnhanced.value = false;
+        }, 2000);
+    }
+};
 </script>
 
 <template>
@@ -192,6 +264,18 @@ const handleAmaneMint = async (target) => {
                 <Trash2 v-else :size="18" />
                 <div class="orb-aura"></div>
             </button>
+            <button @click="handleTiveEnhance" class="control-orb" :class="{ 'enhanced': isTiveEnhanced }">
+                <BrainCircuit :size="20" :class="{ 'animate-pulse text-rose-300': isProcessingHybrid }" />
+                <div class="orb-aura"></div>
+            </button>
+            <button @click="sendFeedback(0.1)" class="control-orb text-rose-500 hover:bg-rose-500/10">
+                <Heart :size="18" />
+                <div class="orb-aura"></div>
+            </button>
+            <button @click="sendFeedback(-0.1)" class="control-orb text-blue-400 hover:bg-blue-400/10">
+                <Wind :size="18" />
+                <div class="orb-aura"></div>
+            </button>
         </div>
 
         <div class="sacred-vessel-card glass-vessel">
@@ -199,7 +283,20 @@ const handleAmaneMint = async (target) => {
             
             <!-- Dynamic Neural Content -->
             <Transition name="reveal" mode="out-in" appear>
-                <div v-if="isThinking" key="thinking" class="thinking-nexus">
+                <!-- Neural Synthesis Loading (New Sophisticated View) -->
+                <div v-if="isProcessingHybrid" key="hybrid-loading" class="thinking-nexus hybrid-nexus">
+                    <div class="nexus-core">
+                        <BrainCircuit :size="40" class="brain-icon-spin text-rose-400" />
+                        <Sparkles :size="20" class="sparkle-pulse absolute -top-2 -right-2 text-gold-400" />
+                    </div>
+                    <h2 class="nexus-title">Neural Synthesis</h2>
+                    <div class="status-steps">
+                        <div class="step-bar"><div class="step-progress" :style="{ width: (tiveAnalysis.step * 33.3) + '%' }"></div></div>
+                        <p class="nexus-sub">{{ tiveAnalysis.status }}</p>
+                    </div>
+                </div>
+
+                <div v-else-if="isThinking" key="thinking" class="thinking-nexus">
                     <div class="nexus-core">
                         <div class="core-beat"></div>
                         <div class="neural-pulse-ring"></div>
@@ -209,8 +306,15 @@ const handleAmaneMint = async (target) => {
                 </div>
 
                 <div v-else key="content" class="content-nexus custom-scroll flex items-center justify-center p-0 overflow-visible">
-                    <!-- AI Verified Response (Pinkcard) -->
+                    <!-- AI Verified Response (Pinkcard) or TiveGem (Swiper) -->
+                    <TiveGemCard 
+                        v-if="gemCardData || gemData"
+                        :gemData="gemCardData || gemData"
+                        :isProcessing="false"
+                        class="reveal-scale transition-all duration-1000"
+                    />
                     <AmaneCertificationCard 
+                        v-else
                         class="reveal-scale transition-all duration-1000"
                         :fact="{
                             model: activeModel,
@@ -380,6 +484,19 @@ const handleAmaneMint = async (target) => {
     border-radius: 50%; animation: ring-expand 2s infinite; 
 }
 @keyframes ring-expand { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(2.5); opacity: 0; } }
+
+/* NEURAL ENHANCE ANIMATIONS */
+.brain-icon-spin { animation: spin-slow 10s linear infinite; }
+@keyframes spin-slow { from { rotate: 0deg; } to { rotate: 360deg; } }
+
+.sparkle-pulse { animation: sparkle 2s infinite alternate ease-in-out; }
+@keyframes sparkle { from { scale: 0.8; filter: brightness(1); } to { scale: 1.2; filter: brightness(1.5); } }
+
+.status-steps { width: 100%; max-width: 200px; margin: 20px auto 0; }
+.step-bar { width: 100%; height: 2px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
+.step-progress { height: 100%; background: #FF8B8B; transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+
+.control-orb.enhanced { background: rgba(255,139,139,0.2); border-color: rgba(255,139,139,0.4); }
 
 .reveal-scale { scale: 1.0; }
 @media (max-width: 640px) { .reveal-scale { scale: 0.85; } }

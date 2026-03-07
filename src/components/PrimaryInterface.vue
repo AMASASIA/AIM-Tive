@@ -1,4 +1,9 @@
 <script setup>
+import { ref, watch } from 'vue';
+import { 
+    Globe, Sun, Moon, Settings, CircleDot, Map, 
+    MessageSquare, Activity, Mic, ChevronDown, Play, Square, Book 
+} from 'lucide-vue-next';
 import Orb from './Orb.vue';
 import { i18n, theme, toggleTheme, activeModel, setModel } from '../services/i18n';
 
@@ -9,7 +14,7 @@ const props = defineProps({
   lastAudioUrl: String
 });
 
-const emit = defineEmits(['toggleVoice', 'viewDiscovery', 'viewAiMap', 'viewMemos', 'textInput', 'notify']);
+const emit = defineEmits(['toggleVoice', 'viewDiscovery', 'viewAiMap', 'viewMemos', 'textInput', 'notify', 'viewDeployment', 'viewCards']);
 
 const textInputValue = ref('');
 const showLanguageMenu = ref(false);
@@ -133,6 +138,14 @@ watch(() => props.isListening, (newVal) => {
             <button @click="$emit('viewMemos')" class="bridge-link">
                 <MessageSquare :size="16" />
                 <span>{{ i18n.t('memo') }}</span>
+            </button>
+            <button @click="$emit('viewCards')" class="bridge-link">
+                <Book :size="16" />
+                <span>Cards</span>
+            </button>
+            <button @click="$emit('viewDeployment')" class="bridge-link">
+                <Activity :size="16" />
+                <span>{{ i18n.t('deployment') }}</span>
             </button>
         </nav>
     </main>
